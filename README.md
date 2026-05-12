@@ -120,10 +120,6 @@ npm run test
 npm run build
 ```
 
-## Manual QA
-
-The release checklist lives in [QA-CHECKLIST.md](QA-CHECKLIST.md). The checklist is included in this repository, but live Discord-side execution remains a manual step and is not performed by the automated test suite.
-
 ## Troubleshooting
 
 - Slash commands do not appear: confirm `DISCORD_CLIENT_ID`, optionally `DISCORD_GUILD_ID`, then rerun `npm run deploy-commands`.
