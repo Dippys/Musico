@@ -45,10 +45,19 @@ interface LrcLibLyricsRecord {
 }
 
 const DEFAULT_CACHE_TTL_MS = 30 * 60 * 1_000;
-const DEFAULT_REQUEST_TIMEOUT_MS = 5_000;
+const DEFAULT_REQUEST_TIMEOUT_MS = 10_000;
 const LRC_TIMESTAMP_PATTERN = /\[(\d{1,2}):(\d{2})(?:\.(\d{1,3}))?\]/g;
+const BRACKETED_DECORATOR_PATTERN = /\s*[\[(]\s*(?:official(?:\s+(?:audio|video))?|audio|video|lyrics?|hq|hd|visuali(?:s|z)er|music\s+video)[^\])]*[\])]/gi;
 const DECORATOR_PATTERN = /\s+(?:-|:|\||\/)?\s*(?:official(?:\s+(?:audio|video))?|audio|video|lyrics?|hq|hd|visuali(?:s|z)er|music\s+video)\b.*$/i;
 const FEATURE_PATTERN = /\((?:feat|ft)\.?[^)]*\)|\[(?:feat|ft)\.?[^\]]*\]/gi;
+const TITLE_ARTIST_SEPARATOR_PATTERN = /\s*[\-\u2013\u2014]\s*/u;
+const ARTIST_SPLIT_PATTERN = /\s*(?:,|&|\band\b|\bwith\b|\bx\b|\bfeat\.?\b|\bft\.?\b)\s*/iu;
+
+interface LyricsLookupQuery {
+  artistName?: string;
+  duration?: string;
+  trackName: string;
+}
 
 const isObject = (value: unknown): value is Record<string, unknown> => {
   return value !== null && typeof value === "object";
@@ -106,9 +115,152 @@ const readNullableNumber = (
 const stripTrackDecorators = (value: string): string => {
   return value
     .replace(FEATURE_PATTERN, " ")
+    .replace(BRACKETED_DECORATOR_PATTERN, " ")
     .replace(DECORATOR_PATTERN, " ")
     .replace(/\s+/g, " ")
     .trim();
+};
+
+const stripArtistDecorators = (value: string): string => {
+  return value
+    .replace(/\s+-\s+topic$/i, "")
+    .replace(FEATURE_PATTERN, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+};
+
+const splitArtistHints = (value: string): readonly string[] => {
+  return stripArtistDecorators(value)
+    .split(ARTIST_SPLIT_PATTERN)
+    .map((artist) => artist.trim())
+    .filter((artist) => artist.length > 0);
+};
+
+const extractTitleDerivedHints = (
+  title: string,
+): {
+  artistHints: readonly string[];
+  trackNames: readonly string[];
+} => {
+  const cleanedTitle = stripTrackDecorators(title);
+  const separatorIndex = cleanedTitle.search(TITLE_ARTIST_SEPARATOR_PATTERN);
+
+  if (separatorIndex < 0) {
+    return {
+      artistHints: [],
+      trackNames: cleanedTitle.length > 0 ? [cleanedTitle] : [],
+    };
+  }
+
+  const separatorMatch = cleanedTitle.match(TITLE_ARTIST_SEPARATOR_PATTERN);
+  const separatorLength = separatorMatch?.[0].length ?? 0;
+  const leftSide = cleanedTitle.slice(0, separatorIndex).trim();
+  const rightSide = cleanedTitle
+    .slice(separatorIndex + separatorLength)
+    .trim();
+  const trackNames = [cleanedTitle, rightSide]
+    .map((entry) => stripTrackDecorators(entry))
+    .filter((entry, index, array) => entry.length > 0 && array.indexOf(entry) === index);
+
+  return {
+    artistHints: splitArtistHints(leftSide),
+    trackNames,
+  };
+};
+
+const appendLookupQuery = (
+  queries: LyricsLookupQuery[],
+  query: LyricsLookupQuery,
+): void => {
+  const normalizedTrackName = stripTrackDecorators(query.trackName);
+  const normalizedArtistName = query.artistName
+    ? stripArtistDecorators(query.artistName)
+    : undefined;
+
+  if (normalizedTrackName.length === 0) {
+    return;
+  }
+
+  const normalizedQuery: LyricsLookupQuery = {
+    trackName: normalizedTrackName,
+    ...(query.duration ? { duration: query.duration } : {}),
+    ...(normalizedArtistName ? { artistName: normalizedArtistName } : {}),
+  };
+  const dedupeKey = [
+    normalizedQuery.artistName ?? "",
+    normalizedQuery.trackName,
+    normalizedQuery.duration ?? "",
+  ].join("|");
+
+  if (
+    queries.some((existingQuery) => {
+      return [
+        existingQuery.artistName ?? "",
+        existingQuery.trackName,
+        existingQuery.duration ?? "",
+      ].join("|") === dedupeKey;
+    })
+  ) {
+    return;
+  }
+
+  queries.push(normalizedQuery);
+};
+
+const buildLookupQueries = (
+  track: Pick<MusicTrack, "artist" | "lengthMs" | "title">,
+): readonly LyricsLookupQuery[] => {
+  const queries: LyricsLookupQuery[] = [];
+  const duration = Math.round(track.lengthMs / 1_000).toString();
+  const cleanedArtist = stripArtistDecorators(track.artist);
+  const cleanedTitle = stripTrackDecorators(track.title);
+  const titleHints = extractTitleDerivedHints(track.title);
+  const primaryArtistHint = titleHints.artistHints[0];
+  const parsedTrackName = titleHints.trackNames.find((trackName) => {
+    return trackName !== cleanedTitle;
+  });
+
+  if (primaryArtistHint && parsedTrackName) {
+    appendLookupQuery(queries, {
+      artistName: primaryArtistHint,
+      duration,
+      trackName: parsedTrackName,
+    });
+    appendLookupQuery(queries, {
+      artistName: primaryArtistHint,
+      trackName: parsedTrackName,
+    });
+  }
+
+  appendLookupQuery(queries, {
+    artistName: cleanedArtist,
+    duration,
+    trackName: cleanedTitle,
+  });
+  appendLookupQuery(queries, {
+    artistName: cleanedArtist,
+    trackName: cleanedTitle,
+  });
+
+  if (parsedTrackName) {
+    appendLookupQuery(queries, {
+      artistName: cleanedArtist,
+      duration,
+      trackName: parsedTrackName,
+    });
+    appendLookupQuery(queries, {
+      artistName: cleanedArtist,
+      trackName: parsedTrackName,
+    });
+  }
+
+  if (parsedTrackName) {
+    appendLookupQuery(queries, {
+      trackName: parsedTrackName,
+    });
+  }
+
+  return queries;
 };
 
 const normalizeForComparison = (value: string): string => {
@@ -379,32 +531,38 @@ export class LyricsService {
       }
     }
 
-    const directMatch = await this.requestSingleRecord({
-      artist_name: stripTrackDecorators(track.artist),
-      duration: Math.round(track.lengthMs / 1_000).toString(),
-      track_name: stripTrackDecorators(track.title),
-    });
+    const lookupQueries = buildLookupQueries(track);
+    let lastError: unknown = null;
 
-    if (directMatch) {
-      return toLyricsResult(directMatch);
+    for (const query of lookupQueries) {
+      try {
+        const candidates = await this.requestSearchRecords({
+          ...(query.artistName ? { artist_name: query.artistName } : {}),
+          ...(query.duration ? { duration: query.duration } : {}),
+          track_name: query.trackName,
+        });
+        const bestCandidate = [...candidates]
+          .sort(
+            (left, right) =>
+              scoreLyricsCandidate(right, track) - scoreLyricsCandidate(left, track),
+          )
+          .find((candidate) => {
+            return scoreLyricsCandidate(candidate, track) >= 30;
+          });
+
+        if (bestCandidate) {
+          return toLyricsResult(bestCandidate);
+        }
+      } catch (error) {
+        lastError = error;
+      }
     }
 
-    const candidates = await this.requestSearchRecords({
-      artist_name: stripTrackDecorators(track.artist),
-      duration: Math.round(track.lengthMs / 1_000).toString(),
-      track_name: stripTrackDecorators(track.title),
-    });
+    if (lastError) {
+      throw lastError;
+    }
 
-    const bestCandidate = [...candidates]
-      .sort(
-        (left, right) =>
-          scoreLyricsCandidate(right, track) - scoreLyricsCandidate(left, track),
-      )
-      .find((candidate) => {
-        return scoreLyricsCandidate(candidate, track) >= 30;
-      });
-
-    return bestCandidate ? toLyricsResult(bestCandidate) : null;
+    return null;
   }
 
   private async requestSingleRecord(
@@ -418,7 +576,7 @@ export class LyricsService {
 
     const response = await this.fetchJson(url);
 
-    if (response.status === 404) {
+    if (response.status === 400 || response.status === 404 || response.status === 422) {
       return null;
     }
 
@@ -440,7 +598,7 @@ export class LyricsService {
 
     const response = await this.fetchJson(url);
 
-    if (response.status === 404) {
+    if (response.status === 400 || response.status === 404 || response.status === 422) {
       return [];
     }
 
