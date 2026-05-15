@@ -10,6 +10,8 @@ import { DisplayMessageController } from "./music/DisplayMessageController.js";
 import { GuildSettingsStore } from "./music/GuildSettingsStore.js";
 import { GuildPlayerService } from "./music/GuildPlayerService.js";
 import { LavalinkConfigError, LavalinkService } from "./music/LavalinkService.js";
+import { LyricsMessageController } from "./music/LyricsMessageController.js";
+import { LyricsService } from "./music/LyricsService.js";
 import { TrackResolverService } from "./music/TrackResolverService.js";
 
 const registerShutdownHandlers = (client: Client): void => {
@@ -61,6 +63,8 @@ const start = async (): Promise<void> => {
     const guildSettings = new GuildSettingsStore();
     const guildPlayers = new GuildPlayerService(env, lavalink, guildSettings);
     const displayMessages = new DisplayMessageController(client, guildPlayers);
+    const lyrics = new LyricsService();
+    const lyricsMessages = new LyricsMessageController(client, guildPlayers, lyrics);
     const trackResolver = new TrackResolverService(lavalink);
 
     registerShutdownHandlers(client);
@@ -71,6 +75,8 @@ const start = async (): Promise<void> => {
         guildSettings,
         guildPlayers,
         lavalink,
+        lyrics,
+        lyricsMessages,
         trackResolver,
       },
       registry: botRegistry,

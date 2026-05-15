@@ -10,6 +10,7 @@ import { clearCommand } from "../commands/music/clear.js";
 import { filterCommand } from "../commands/music/filter.js";
 import { joinCommand } from "../commands/music/join.js";
 import { leaveCommand } from "../commands/music/leave.js";
+import { lyricsCommand } from "../commands/music/lyrics.js";
 import { moveCommand } from "../commands/music/move.js";
 import { nowPlayingCommand } from "../commands/music/nowplaying.js";
 import { pauseCommand } from "../commands/music/pause.js";
@@ -63,6 +64,7 @@ const commands: readonly SlashCommand[] = [
   filterCommand,
   joinCommand,
   leaveCommand,
+  lyricsCommand,
   moveCommand,
   nowPlayingCommand,
   pauseCommand,
