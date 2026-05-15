@@ -1,5 +1,6 @@
 import { SlashCommandBuilder } from "discord.js";
 
+import { deferReply } from "../../bot/interactionReplies.js";
 import { createLyricsView } from "../../display/lyricsView.js";
 import { toDisplayEdit, toDisplayReply } from "../../display/shared.js";
 import type { SlashCommand } from "../../types/commands.js";
@@ -36,6 +37,8 @@ export const lyricsCommand: SlashCommand = {
       await respondWithCommandError(interaction, "Nothing is playing right now.");
       return;
     }
+
+    await deferReply(interaction);
 
     syncDisplayChannelForInteraction(interaction, context.music);
 

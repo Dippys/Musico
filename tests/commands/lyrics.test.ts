@@ -120,31 +120,37 @@ const createContext = (overrides: {
 
 describe("lyricsCommand", () => {
   it("shows synced lyrics for the current track", async () => {
-    const reply = vi.fn().mockResolvedValue(undefined);
+    const editReply = vi.fn().mockResolvedValue(undefined);
+    const interaction = {
+      channelId: "text-1",
+      deferred: false,
+      deferReply: vi.fn().mockImplementation(async () => {
+        interaction.deferred = true;
+      }),
+      editReply,
+      guildId: "guild-1",
+      inCachedGuild: () => true,
+      options: {
+        getBoolean: vi.fn().mockReturnValue(false),
+      },
+      replied: false,
+      reply: vi.fn().mockResolvedValue(undefined),
+    };
 
     await lyricsCommand.execute(
-      {
-        channelId: "text-1",
-        deferred: false,
-        guildId: "guild-1",
-        inCachedGuild: () => true,
-        options: {
-          getBoolean: vi.fn().mockReturnValue(false),
-        },
-        replied: false,
-        reply,
-      } as never,
+      interaction as never,
       createContext() as never,
     );
 
-    expect(reply).toHaveBeenCalledWith(
+    expect(interaction.deferReply).toHaveBeenCalledWith();
+    expect(editReply).toHaveBeenCalledWith(
       expect.objectContaining({
         components: expect.any(Array),
         flags: MessageFlags.IsComponentsV2,
       }),
     );
 
-    const payload = JSON.stringify(reply.mock.calls[0][0]);
+    const payload = JSON.stringify(editReply.mock.calls[0][0]);
     expect(payload).toContain("## Lyrics");
     expect(payload).toContain("Never Gonna Give You Up");
     expect(payload).toContain("Synced lyrics");
@@ -153,26 +159,31 @@ describe("lyricsCommand", () => {
   });
 
   it("registers a tracked message when live mode is requested", async () => {
-    const reply = vi.fn().mockResolvedValue(undefined);
+    const editReply = vi.fn().mockResolvedValue(undefined);
     const fetchReply = vi.fn().mockResolvedValue({
       channelId: "text-1",
       id: "message-1",
     });
     const registerGuildMessage = vi.fn().mockResolvedValue(undefined);
+    const interaction = {
+      channelId: "text-1",
+      deferred: false,
+      deferReply: vi.fn().mockImplementation(async () => {
+        interaction.deferred = true;
+      }),
+      editReply,
+      fetchReply,
+      guildId: "guild-1",
+      inCachedGuild: () => true,
+      options: {
+        getBoolean: vi.fn().mockReturnValue(true),
+      },
+      replied: false,
+      reply: vi.fn().mockResolvedValue(undefined),
+    };
 
     await lyricsCommand.execute(
-      {
-        channelId: "text-1",
-        deferred: false,
-        fetchReply,
-        guildId: "guild-1",
-        inCachedGuild: () => true,
-        options: {
-          getBoolean: vi.fn().mockReturnValue(true),
-        },
-        replied: false,
-        reply,
-      } as never,
+      interaction as never,
       createContext({
         lyricsMessages: {
           registerGuildMessage,
@@ -180,7 +191,8 @@ describe("lyricsCommand", () => {
       }) as never,
     );
 
-    expect(reply).toHaveBeenCalledWith(
+    expect(interaction.deferReply).toHaveBeenCalledWith();
+    expect(editReply).toHaveBeenCalledWith(
       expect.objectContaining({
         components: expect.any(Array),
         flags: MessageFlags.IsComponentsV2,
@@ -193,7 +205,7 @@ describe("lyricsCommand", () => {
       "message-1",
     );
 
-    const payload = JSON.stringify(reply.mock.calls[0][0]);
+    const payload = JSON.stringify(editReply.mock.calls[0][0]);
     expect(payload).toContain("## Live Lyrics");
     expect(payload).toContain("This panel refreshes about every 5 seconds while playback is active.");
   });
