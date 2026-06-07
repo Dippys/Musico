@@ -1,28 +1,13 @@
 services:
-  lavalink:
-    image: ghcr.io/lavalink-devs/lavalink:4
-    container_name: musico-lavalink
-    restart: unless-stopped
-    environment:
-      _JAVA_OPTIONS: -Xms256m -Xmx512m
-    ports:
-      - "2333:2333"
-    volumes:
-      - ./docker/lavalink/application.yml:/opt/Lavalink/application.yml:ro
-
   bot:
     build:
       context: .
       dockerfile: Dockerfile
     container_name: musico-bot
-    depends_on:
-      - lavalink
     env_file:
       - .env
     environment:
-      NODE_ENV: development
-      LAVALINK_NODES: >-
-        [{"name":"main","url":"lavalink:2333","auth":"youshallnotpass","secure":false,"reconnectTries":15,"reconnectInterval":5000}]
+      NODE_ENV: production
     restart: unless-stopped
     volumes:
       - ./data:/app/data

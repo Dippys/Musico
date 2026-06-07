@@ -17,45 +17,45 @@ Musico is a Discord music bot built with TypeScript, discord.js v14, and Shoukak
 
 - Node.js 20 or newer
 - A Discord application with a bot token
-- A Lavalink v4 server reachable from the bot
+- One or more external Lavalink v4 servers reachable from the bot
 - Source plugins on the Lavalink side if you want reliable YouTube search and Spotify metadata resolution
 
 ## Quick Start
 
 1. Install dependencies with `npm install`.
 2. Copy `.env.example` to `.env`.
-3. Fill in `DISCORD_TOKEN`, `DISCORD_CLIENT_ID`, `BOT_OWNER_IDS`, and your Lavalink node JSON.
-4. Start Lavalink.
-5. Deploy slash commands with `npm run deploy-commands`.
-6. Start the bot with `npm run dev` for development or `npm run build` followed by `npm run start` for a production-style run.
+3. Fill in `DISCORD_TOKEN`, `DISCORD_CLIENT_ID`, `BOT_OWNER_IDS`, and your external Lavalink node JSON.
+4. Deploy slash commands with `npm run deploy-commands`.
+5. Start the bot with `npm run dev` for development or `npm run build` followed by `npm run start` for a production-style run.
 
 ## Environment Notes
 
 - `DISCORD_GUILD_ID` is optional for the bot process, but required by `npm run deploy-commands` when you are not deploying globally in production.
-- `LAVALINK_NODES` must be valid JSON. The bot accepts multiple nodes and enables Shoukaku failover when more than one node is configured.
+- `LAVALINK_NODES` must be valid JSON. Point it at your external Lavalink host or hosts. The bot accepts multiple nodes and enables Shoukaku failover when more than one node is configured.
 - `BOT_OWNER_IDS` is a comma-separated list of Discord user IDs that bypass DJ mode restrictions.
 
 ## Lavalink Plugin Notes
 
-Modern music bots typically need Lavalink plugins for reliable search and source coverage. The included compose stack mounts [docker/lavalink/application.yml](docker/lavalink/application.yml), which:
+Modern music bots typically need Lavalink plugins for reliable search and source coverage. Your external Lavalink host may need:
 
-- disables Lavalink's deprecated built-in YouTube source
-- enables `youtube-plugin` for `ytsearch:` and `ytmsearch:` support
-- enables LavaSrc for mirrored-source resolution defaults without requiring extra bot env configuration
+- disabled Lavalink's deprecated built-in YouTube source
+- `youtube-plugin` for `ytsearch:` and `ytmsearch:` support
+- LavaSrc for mirrored-source resolution defaults without requiring extra bot env configuration
 
 If search queries fail while direct URLs still work, your Lavalink node is usually missing a source plugin or has an outdated plugin configuration.
 
 ## Docker
 
-`Dockerfile` builds the bot into a small multi-stage Node 20 image. `docker-compose.yml` brings up both the bot and a local Lavalink node for integration testing.
+`Dockerfile` builds the bot into a small multi-stage Node 20 image. `docker-compose.yml` starts the bot container and expects your Lavalink server to be external.
 
-### Local Compose Stack
+### VPS Deploy
 
 1. Populate `.env` with your Discord credentials and bot owner IDs.
-2. Run `docker compose up --build`.
+2. Run `docker compose up -d --build`.
 3. Deploy commands from your host shell with `npm run deploy-commands`, or exec into the bot container to run it there.
+4. Use `/restart` from a configured bot owner account if the bot gets into a bad state.
 
-The compose file overrides `LAVALINK_NODES` so the bot automatically targets the local `lavalink` service on the Docker network.
+Set `LAVALINK_NODES` to one or more external Lavalink URLs in `.env` before starting the container.
 
 ## Commands
 
@@ -65,6 +65,7 @@ The compose file overrides `LAVALINK_NODES` so the bot automatically targets the
 - `/djmode`
 - `/help`
 - `/ping`
+- `/restart`
 - `/settings`
 - `/stats`
 

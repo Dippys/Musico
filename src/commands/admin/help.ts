@@ -38,6 +38,7 @@ const adminCommandNames = new Set([
   "djmode",
   "help",
   "ping",
+  "restart",
   "settings",
   "stats",
 ]);

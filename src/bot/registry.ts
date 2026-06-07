@@ -2,6 +2,7 @@ import { bindCommand } from "../commands/admin/bind.js";
 import { djModeCommand } from "../commands/admin/djmode.js";
 import { helpCommand } from "../commands/admin/help.js";
 import { pingCommand } from "../commands/admin/ping.js";
+import { restartCommand } from "../commands/admin/restart.js";
 import { settingsCommand } from "../commands/admin/settings.js";
 import { statsCommand } from "../commands/admin/stats.js";
 import { twentyFourSevenCommand } from "../commands/music/247.js";
@@ -10,7 +11,6 @@ import { clearCommand } from "../commands/music/clear.js";
 import { filterCommand } from "../commands/music/filter.js";
 import { joinCommand } from "../commands/music/join.js";
 import { leaveCommand } from "../commands/music/leave.js";
-import { lyricsCommand } from "../commands/music/lyrics.js";
 import { moveCommand } from "../commands/music/move.js";
 import { nowPlayingCommand } from "../commands/music/nowplaying.js";
 import { pauseCommand } from "../commands/music/pause.js";
@@ -56,6 +56,7 @@ const commands: readonly SlashCommand[] = [
   djModeCommand,
   helpCommand,
   pingCommand,
+  restartCommand,
   settingsCommand,
   statsCommand,
   twentyFourSevenCommand,
@@ -64,7 +65,6 @@ const commands: readonly SlashCommand[] = [
   filterCommand,
   joinCommand,
   leaveCommand,
-  lyricsCommand,
   moveCommand,
   nowPlayingCommand,
   pauseCommand,
